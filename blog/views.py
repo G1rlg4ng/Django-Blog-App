@@ -128,25 +128,26 @@ def post_search(request):
         if form.is_valid():
             query = form.cleaned_data['query']
 
-            # results = (
-            #     Post.published.annotate(
-            #         similarity=TrigramSimilarity('title', query),
-            #     )
-            #     .filter(similarity__gt=0.1)
-            #     .order_by('-similarity')
-            # )
-
-            search_vector = SearchVector('title', weight='A') + SearchVector('body', weight='B')
-            search_query = SearchQuery(query)
-
+            # Searching with trigram similarity
             results = (
                 Post.published.annotate(
-                    search=search_vector,
-                    rank=SearchRank(search_vector, search_query)
+                    similarity=TrigramSimilarity('title', query),
                 )
-                .filter(rank__gte=0.3)  # Filter results with a rank higher than 0.3
-                .order_by('-rank')
+                .filter(similarity__gt=0.1)
+                .order_by('-similarity')
             )
+
+            # search_vector = SearchVector('title', weight='A') + SearchVector('body', weight='B')
+            # search_query = SearchQuery(query)
+            #
+            # results = (
+            #     Post.published.annotate(
+            #         search=search_vector,
+            #         rank=SearchRank(search_vector, search_query)
+            #     )
+            #     .filter(rank__gte=0.3)  # Filter results with a rank higher than 0.3
+            #     .order_by('-rank')
+            # )
 
     return render(request, 'blog/post/search.html', {
         'form': form,
