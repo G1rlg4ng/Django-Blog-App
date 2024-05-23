@@ -7,7 +7,8 @@ from django.views.decorators.http import require_POST
 from .models import Post
 from .forms import EmailPostForm, CommentForm, SearchForm
 from taggit.models import Tag
-from django.contrib.postgres.search import SearchVector
+from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
+from django.contrib.postgres.search import TrigramSimilarity
 
 
 class PostListView(ListView):
@@ -126,7 +127,26 @@ def post_search(request):
         form = SearchForm(request.GET)
         if form.is_valid():
             query = form.cleaned_data['query']
-            results = (Post.published.annotate(search=SearchVector('title', 'body'),).filter(search=query))
+
+            # results = (
+            #     Post.published.annotate(
+            #         similarity=TrigramSimilarity('title', query),
+            #     )
+            #     .filter(similarity__gt=0.1)
+            #     .order_by('-similarity')
+            # )
+
+            search_vector = SearchVector('title', weight='A') + SearchVector('body', weight='B')
+            search_query = SearchQuery(query)
+
+            results = (
+                Post.published.annotate(
+                    search=search_vector,
+                    rank=SearchRank(search_vector, search_query)
+                )
+                .filter(rank__gte=0.3)  # Filter results with a rank higher than 0.3
+                .order_by('-rank')
+            )
 
     return render(request, 'blog/post/search.html', {
         'form': form,
